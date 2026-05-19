@@ -36,6 +36,27 @@ function response(event, statusCode, body = {}) {
   };
 }
 
+async function requestToEvent(request) {
+  const url = new URL(request.url);
+  const headers = Object.fromEntries(request.headers.entries());
+  return {
+    body: request.method === "GET" || request.method === "HEAD" ? "" : await request.text(),
+    headers,
+    httpMethod: request.method,
+    isBase64Encoded: false,
+    path: url.pathname,
+    queryStringParameters: Object.fromEntries(url.searchParams.entries()),
+    rawUrl: request.url,
+  };
+}
+
+function toWebResponse(result) {
+  return new Response(result.statusCode === 204 ? null : result.body || "", {
+    status: result.statusCode,
+    headers: result.headers || {},
+  });
+}
+
 function unauthorized(event) {
   return response(event, 401, { error: "unauthorized" });
 }
@@ -290,7 +311,7 @@ async function handleDecision(event, store, submissionId) {
   return response(event, 200, publicSubmission(submission));
 }
 
-export async function handler(event) {
+async function handleEvent(event) {
   if (event.httpMethod === "OPTIONS") {
     return response(event, 204);
   }
@@ -326,3 +347,12 @@ export async function handler(event) {
     return response(event, 500, { error: error instanceof Error ? error.message : "intake_api_error" });
   }
 }
+
+export default async function handler(request) {
+  const event = await requestToEvent(request);
+  return toWebResponse(await handleEvent(event));
+}
+
+export const config = {
+  path: ["/submissions", "/submissions/*"],
+};
