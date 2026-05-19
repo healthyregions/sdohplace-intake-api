@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "netlify dev",
     "test": "node --test",
-    "lint": "node --check netlify/functions/submissions.js && node --check scripts/smoke-test.mjs"
+    "lint": "node --check netlify/functions/submissions.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^9.1.0"

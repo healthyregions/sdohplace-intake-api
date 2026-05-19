@@ -315,14 +315,11 @@ async function handleEvent(event) {
   if (event.httpMethod === "OPTIONS") {
     return response(event, 204);
   }
-
   if (!isAuthorized(event)) {
     return unauthorized(event);
   }
-
   const store = await getSubmissionStore();
   const submissionId = submissionIdFromPath(event);
-
   try {
     if (!submissionId && event.httpMethod === "GET") {
       return handleList(event, store);
