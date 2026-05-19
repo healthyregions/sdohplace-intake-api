@@ -1,0 +1,21 @@
+{
+  "name": "sdohplace-intake-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Submission intake API for SDOH Place contributor workflows.",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "test": "node --test",
+    "lint": "node --check netlify/functions/submissions.js && node --check scripts/smoke-test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^9.1.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

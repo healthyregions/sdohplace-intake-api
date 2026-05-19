@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: "SDOH & Place Project - Data Discovery Intake API"
+version: 0.1.0
+date-released: 2026-05-19
+abstract: "An API for the SDOH & Place Project's Data Discovery application that handles intake of dataset submissions, including receiving, validating, and storing submission data from users contributing datasets to the project."
+url: "https://search.sdohplace.org"
+repository-code: "https://github.com/healthyregions/sdohplace-intake-api"
+license: "GPL-3.0"
+authors:
+  - given-names: Pengyin
+    family-names: Shan
+    alias: pengyin-shan
+keywords:
+  - social determinants of health
+  - geospatial data
+  - health equity
+  - public health
+  - next.js
+  - Netlify

@@ -1,0 +1,21 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[dev]
+  port = 9090
+  targetPort = 9090
+  framework = "#static"
+  publish = "public"
+
+[[redirects]]
+  from = "/submissions"
+  to = "/.netlify/functions/submissions"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/submissions/*"
+  to = "/.netlify/functions/submissions"
+  status = 200
+  force = true
