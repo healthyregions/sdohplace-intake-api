@@ -143,7 +143,10 @@ function getSubmissionStore() {
   if (process.env.INTAKE_STORAGE_DRIVER === "file") {
     return getLocalStore();
   }
-  return getStore(STORE_NAME);
+  const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID || "";
+  const token = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN || "";
+  const storeOptions = siteID && token ? { name: STORE_NAME, siteID, token } : STORE_NAME;
+  return getStore(storeOptions);
 }
 
 async function listSubmissions(store) {
