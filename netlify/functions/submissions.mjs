@@ -36,27 +36,6 @@ function response(event, statusCode, body = {}) {
   };
 }
 
-async function requestToEvent(request) {
-  const url = new URL(request.url);
-  const headers = Object.fromEntries(request.headers.entries());
-  return {
-    body: request.method === "GET" || request.method === "HEAD" ? "" : await request.text(),
-    headers,
-    httpMethod: request.method,
-    isBase64Encoded: false,
-    path: url.pathname,
-    queryStringParameters: Object.fromEntries(url.searchParams.entries()),
-    rawUrl: request.url,
-  };
-}
-
-function toWebResponse(result) {
-  return new Response(result.statusCode === 204 ? null : result.body || "", {
-    status: result.statusCode,
-    headers: result.headers || {},
-  });
-}
-
 function unauthorized(event) {
   return response(event, 401, { error: "unauthorized" });
 }
@@ -345,11 +324,6 @@ async function handleEvent(event) {
   }
 }
 
-export default async function handler(request) {
-  const event = await requestToEvent(request);
-  return toWebResponse(await handleEvent(event));
-}
-
-export const config = {
-  path: ["/submissions", "/submissions/*"],
+export const handler = async function (event) {
+  return handleEvent(event);
 };
