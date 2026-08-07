@@ -1,6 +1,12 @@
 import { getStore } from "@netlify/blobs";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import {
+  notifyDecision,
+  notifyPublished,
+  notifyResubmission,
+  notifySubmissionCreated,
+} from "./lib/notify.mjs";
 
 const STORE_NAME = process.env.INTAKE_STORE_NAME || "submissions";
 const API_TOKEN = process.env.INTAKE_API_TOKEN || "";
@@ -79,6 +85,11 @@ function submissionIdFromPath(event) {
 function isDecisionPath(event) {
   const segments = normalizePath(event);
   return segments.length === 2 && segments[1] === "decision";
+}
+
+function isPublishedPath(event) {
+  const segments = normalizePath(event);
+  return segments.length === 2 && segments[1] === "published";
 }
 
 function contributorPayload(payload) {
@@ -214,6 +225,8 @@ async function handleCreate(event, store) {
     payload_json: contributorPayload(input.payload_json || input.payload || {}),
   };
   await saveSubmission(store, submission);
+  // Notify the contributor and reviewers about the new submission
+  await notifySubmissionCreated(submission);
   return response(event, 201, publicSubmission(submission));
 }
 
@@ -240,6 +253,7 @@ async function handleUpdate(event, store, submissionId) {
     return response(event, 404, { error: "not_found" });
   }
   const input = parseBody(event);
+  const previousStatus = submission.status || "";
   if (Object.prototype.hasOwnProperty.call(input, "payload_json")) {
     submission.payload_json = contributorPayload(input.payload_json);
   }
@@ -256,6 +270,10 @@ async function handleUpdate(event, store, submissionId) {
   }
   submission.updated_at = nowIso();
   await saveSubmission(store, submission);
+  // Notify if contributor resubmitted after a "needs_changes" decision
+  if (previousStatus === "needs_changes" && submission.status === "submitted") {
+    await notifyResubmission(submission);
+  }
   return response(event, 200, publicSubmission(submission));
 }
 
@@ -290,6 +308,24 @@ async function handleDecision(event, store, submissionId) {
   }
   submission.updated_at = nowIso();
   await saveSubmission(store, submission);
+  await notifyDecision(submission, input.notes);
+  return response(event, 200, publicSubmission(submission));
+}
+
+// Notify the contributor that their submission is now live in website
+async function handlePublished(event, store, submissionId) {
+  const submission = await findSubmission(store, submissionId);
+  if (!submission) {
+    return response(event, 404, { error: "not_found" });
+  }
+  const input = parseBody(event);
+  if (input.record_id) {
+    submission.record_id = input.record_id;
+  }
+  submission.published_at = nowIso();
+  submission.updated_at = submission.published_at;
+  await saveSubmission(store, submission);
+  await notifyPublished(submission);
   return response(event, 200, publicSubmission(submission));
 }
 
@@ -311,6 +347,9 @@ async function handleEvent(event) {
     }
     if (submissionId && isDecisionPath(event) && event.httpMethod === "POST") {
       return handleDecision(event, store, submissionId);
+    }
+    if (submissionId && isPublishedPath(event) && event.httpMethod === "POST") {
+      return handlePublished(event, store, submissionId);
     }
     if (submissionId && event.httpMethod === "GET") {
       return handleGet(event, store, submissionId);
