@@ -220,6 +220,7 @@ async function handleCreate(event, store) {
     submitter_username: input.submitter_username || "",
     submitter_id: input.submitter_id || "",
     source: input.source || "",
+    site_origin: input.site_origin || "",
     submitted_at: timestamp,
     updated_at: timestamp,
     payload_json: contributorPayload(input.payload_json || input.payload || {}),
@@ -267,6 +268,9 @@ async function handleUpdate(event, store, submissionId) {
   }
   if (Object.prototype.hasOwnProperty.call(input, "source")) {
     submission.source = input.source || "";
+  }
+  if (!submission.site_origin && input.site_origin) {
+    submission.site_origin = input.site_origin;
   }
   submission.updated_at = nowIso();
   await saveSubmission(store, submission);
