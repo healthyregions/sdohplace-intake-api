@@ -226,8 +226,9 @@ async function handleCreate(event, store) {
     payload_json: contributorPayload(input.payload_json || input.payload || {}),
   };
   await saveSubmission(store, submission);
-  // Notify the contributor and reviewers about the new submission
-  await notifySubmissionCreated(submission);
+  if (submission.status === "submitted") {
+    await notifySubmissionCreated(submission);
+  }
   return response(event, 201, publicSubmission(submission));
 }
 
@@ -274,9 +275,12 @@ async function handleUpdate(event, store, submissionId) {
   }
   submission.updated_at = nowIso();
   await saveSubmission(store, submission);
-  // Notify if contributor resubmitted after a "needs_changes" decision
-  if (previousStatus === "needs_changes" && submission.status === "submitted") {
-    await notifyResubmission(submission);
+  if (previousStatus !== "submitted" && submission.status === "submitted") {
+    if (previousStatus === "needs_changes") {
+      await notifyResubmission(submission);
+    } else {
+      await notifySubmissionCreated(submission);
+    }
   }
   return response(event, 200, publicSubmission(submission));
 }

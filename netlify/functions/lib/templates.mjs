@@ -41,7 +41,7 @@ function isAllowedOrigin(origin) {
 	});
 }
 
-export function siteBaseUrl(siteOrigin) {
+function siteBaseUrl(siteOrigin) {
 	if (siteOrigin && isAllowedOrigin(siteOrigin)) {
 		return String(siteOrigin).replace(/\/$/, "");
 	}
@@ -192,15 +192,6 @@ Submission: ${title}
 Submitted by: ${submitterName || "Unknown"}${submitterEmail ? ` <${submitterEmail}>` : ""}
 
 ${section("Review it here:", url)}This is an automated notification from the SDOH & Place intake API.`,
-
-	reviewer_digest: ({ count, lines }) =>
-		`Subject: [SDOH & Place] ${count} submission${count === 1 ? "" : "s"} pending review
-
-The following submission${count === 1 ? " has" : "s have"} been waiting for review:
-
-${lines}
-
-This is an automated weekly summary from the SDOH & Place intake API.`,
 
 	admin_send_failure: ({ event, recipient, errorMessage, submissionId }) =>
 		`Subject: [SDOH & Place] Email delivery failed (${event})

@@ -146,5 +146,3 @@ export async function notifyPublished(submission) {
     id,
   );
 }
-
-export { reviewerRecipients };
