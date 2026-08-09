@@ -73,7 +73,7 @@ export async function notifySubmissionCreated(submission) {
   const id = submission?.id;
   const context = {
     title,
-    url: submissionUrl(id),
+    url: submissionUrl(id, submission?.site_origin),
     submitterName: submission?.submitter_name,
     submitterEmail: submitterEmail(submission),
   };
@@ -89,7 +89,10 @@ export async function notifySubmissionCreated(submission) {
       "reviewer_new_submission",
       reviewerRecipients(),
       "reviewer_new_submission",
-      { ...context, url: reviewUrl(id) || submissionUrl(id) },
+      {
+        ...context,
+        url: reviewUrl(id) || submissionUrl(id, submission?.site_origin),
+      },
       id,
     ),
   ]);
@@ -107,7 +110,7 @@ export async function notifyDecision(submission, notes) {
     templateName,
     {
       title: submissionTitle(submission),
-      url: submissionUrl(id),
+      url: submissionUrl(id, submission?.site_origin),
       notes: notes || submission?.review_notes || "",
     },
     id,
@@ -122,7 +125,7 @@ export async function notifyResubmission(submission) {
     "reviewer_resubmission",
     {
       title: submissionTitle(submission),
-      url: reviewUrl(id) || submissionUrl(id),
+      url: reviewUrl(id) || submissionUrl(id, submission?.site_origin),
       submitterName: submission?.submitter_name,
       submitterEmail: submitterEmail(submission),
     },
@@ -138,7 +141,7 @@ export async function notifyPublished(submission) {
     "submission_published",
     {
       title: submissionTitle(submission),
-      url: submissionUrl(id),
+      url: submissionUrl(id, submission?.site_origin),
     },
     id,
   );

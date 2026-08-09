@@ -13,11 +13,46 @@ function discoveryBaseUrl() {
 	);
 }
 
-export function submissionUrl(submissionId) {
+function allowedOrigins() {
+	const configured = env("ALLOWED_SITE_ORIGINS", "")
+		.split(",")
+		.map((entry) => entry.trim().replace(/\/$/, ""))
+		.filter(Boolean);
+	return [discoveryBaseUrl(), ...configured];
+}
+
+function isAllowedOrigin(origin) {
+	const candidate = String(origin || "").replace(/\/$/, "");
+	if (!candidate) {
+		return false;
+	}
+	return allowedOrigins().some((allowed) => {
+		const starIndex = allowed.indexOf("://*");
+		if (starIndex !== -1) {
+			const scheme = allowed.slice(0, starIndex);
+			const suffix = allowed.slice(starIndex + 4);
+			if (!candidate.startsWith(`${scheme}://`) || !candidate.endsWith(suffix)) {
+				return false;
+			}
+			const host = candidate.slice(`${scheme}://`.length, candidate.length - suffix.length);
+			return host.length > 0 && !host.includes("/");
+		}
+		return candidate === allowed;
+	});
+}
+
+export function siteBaseUrl(siteOrigin) {
+	if (siteOrigin && isAllowedOrigin(siteOrigin)) {
+		return String(siteOrigin).replace(/\/$/, "");
+	}
+	return discoveryBaseUrl();
+}
+
+export function submissionUrl(submissionId, siteOrigin) {
 	if (!submissionId) {
 		return "";
 	}
-	return `${discoveryBaseUrl()}/contribute/submissions/?id=${encodeURIComponent(
+	return `${siteBaseUrl(siteOrigin)}/contribute/submissions/?id=${encodeURIComponent(
 		String(submissionId),
 	)}`;
 }
