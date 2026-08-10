@@ -146,3 +146,57 @@ export async function notifyPublished(submission) {
     id,
   );
 }
+
+export async function notifySubmissionDeleted(submission, actor, reviewer) {
+  const id = submission?.id;
+  const title = submissionTitle(submission);
+  const previousStatus = submission?.status || "";
+  if (actor === "admin") {
+    await Promise.all([
+      deliver(
+        "submission_deleted",
+        submitterEmail(submission),
+        "submission_deleted",
+        { title },
+        id,
+      ),
+      deliver(
+        "reviewer_submission_deleted",
+        reviewerRecipients(),
+        "reviewer_submission_deleted",
+        {
+          title,
+          previousStatus,
+          reviewer,
+          submitterName: submission?.submitter_name,
+          submitterEmail: submitterEmail(submission),
+        },
+        id,
+      ),
+    ]);
+    return;
+  }
+  await deliver(
+    "reviewer_submission_withdrawn",
+    reviewerRecipients(),
+    "reviewer_submission_withdrawn",
+    {
+      title,
+      previousStatus,
+      submitterName: submission?.submitter_name,
+      submitterEmail: submitterEmail(submission),
+    },
+    id,
+  );
+}
+
+export async function notifyRecordDeleted(submission) {
+  const id = submission?.id;
+  await deliver(
+    "record_deleted",
+    submitterEmail(submission),
+    "record_deleted",
+    { title: submissionTitle(submission) },
+    id,
+  );
+}
