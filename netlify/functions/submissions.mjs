@@ -4,8 +4,10 @@ import { dirname } from "node:path";
 import {
   notifyDecision,
   notifyPublished,
+  notifyRecordDeleted,
   notifyResubmission,
   notifySubmissionCreated,
+  notifySubmissionDeleted,
 } from "./lib/notify.mjs";
 
 const STORE_NAME = process.env.INTAKE_STORE_NAME || "submissions";
@@ -90,6 +92,11 @@ function isDecisionPath(event) {
 function isPublishedPath(event) {
   const segments = normalizePath(event);
   return segments.length === 2 && segments[1] === "published";
+}
+
+function isRecordDeletedPath(event) {
+  const segments = normalizePath(event);
+  return segments.length === 2 && segments[1] === "record-deleted";
 }
 
 function contributorPayload(payload) {
@@ -245,7 +252,10 @@ async function handleDelete(event, store, submissionId) {
   if (!submission) {
     return response(event, 404, { error: "not_found" });
   }
+  const actor = event.queryStringParameters?.actor || "contributor";
+  const reviewer = event.queryStringParameters?.reviewer || "";
   await store.delete(submissionId);
+  await notifySubmissionDeleted(submission, actor, reviewer);
   return response(event, 204);
 }
 
@@ -337,6 +347,18 @@ async function handlePublished(event, store, submissionId) {
   return response(event, 200, publicSubmission(submission));
 }
 
+async function handleRecordDeleted(event, store, submissionId) {
+  const submission = await findSubmission(store, submissionId);
+  if (!submission) {
+    return response(event, 404, { error: "not_found" });
+  }
+  submission.record_deleted_at = nowIso();
+  submission.updated_at = submission.record_deleted_at;
+  await saveSubmission(store, submission);
+  await notifyRecordDeleted(submission);
+  return response(event, 200, publicSubmission(submission));
+}
+
 async function handleEvent(event) {
   if (event.httpMethod === "OPTIONS") {
     return response(event, 204);
@@ -358,6 +380,9 @@ async function handleEvent(event) {
     }
     if (submissionId && isPublishedPath(event) && event.httpMethod === "POST") {
       return handlePublished(event, store, submissionId);
+    }
+    if (submissionId && isRecordDeletedPath(event) && event.httpMethod === "POST") {
+      return handleRecordDeleted(event, store, submissionId);
     }
     if (submissionId && event.httpMethod === "GET") {
       return handleGet(event, store, submissionId);

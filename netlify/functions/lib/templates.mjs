@@ -31,10 +31,16 @@ function isAllowedOrigin(origin) {
 		if (starIndex !== -1) {
 			const scheme = allowed.slice(0, starIndex);
 			const suffix = allowed.slice(starIndex + 4);
-			if (!candidate.startsWith(`${scheme}://`) || !candidate.endsWith(suffix)) {
+			if (
+				!candidate.startsWith(`${scheme}://`) ||
+				!candidate.endsWith(suffix)
+			) {
 				return false;
 			}
-			const host = candidate.slice(`${scheme}://`.length, candidate.length - suffix.length);
+			const host = candidate.slice(
+				`${scheme}://`.length,
+				candidate.length - suffix.length,
+			);
 			return host.length > 0 && !host.includes("/");
 		}
 		return candidate === allowed;
@@ -192,6 +198,68 @@ Submission: ${title}
 Submitted by: ${submitterName || "Unknown"}${submitterEmail ? ` <${submitterEmail}>` : ""}
 
 ${section("Review it here:", url)}This is an automated notification from the SDOH & Place intake API.`,
+
+	reviewer_submission_withdrawn: ({
+		title,
+		submitterName,
+		submitterEmail,
+		previousStatus,
+	}) =>
+		`Subject: [SDOH & Place] Submission withdrawn by contributor: ${title}
+
+A contributor has removed their submission.
+
+Submission: ${title}
+Submitted by: ${submitterName || "Unknown"}${submitterEmail ? ` <${submitterEmail}>` : ""}
+Status when removed: ${previousStatus || "unknown"}
+
+No further review is needed.
+
+This is an automated notification from the SDOH & Place intake API.`,
+
+	reviewer_submission_deleted: ({
+		title,
+		submitterName,
+		submitterEmail,
+		previousStatus,
+		reviewer,
+	}) =>
+		`Subject: [SDOH & Place] Submission deleted by admin: ${title}
+
+Submission: ${title}
+Submitted by: ${submitterName || "Unknown"}${submitterEmail ? ` <${submitterEmail}>` : ""}
+Status when deleted: ${previousStatus || "unknown"}
+Deleted by: ${reviewer || "an administrator"}
+
+This is an automated notification from the SDOH & Place intake API.`,
+
+	submission_deleted: ({
+		title,
+	}) => `Subject: SDOH & Place submission removed: ${title}
+
+Hello,
+
+We are writing to let you know that your submission has been removed from the SDOH & Place data discovery platform.
+
+Submission: ${title}
+
+If you believe this was done in error, or if you would like to submit it again, please get in touch with us.
+${contactLine()}
+Thank you,
+SDOH & Place Team`,
+
+	record_deleted: ({ title }) => `Subject: SDOH & Place record removed: ${title}
+
+Hello,
+
+We are writing to let you know that the published record for your submission has been removed from the SDOH & Place data discovery platform, and it is no longer searchable.
+
+Submission: ${title}
+
+If you believe this was done in error, or if you would like to submit it again, please get in touch with us.
+${contactLine()}
+Thank you,
+SDOH & Place Team`,
 
 	admin_send_failure: ({ event, recipient, errorMessage, submissionId }) =>
 		`Subject: [SDOH & Place] Email delivery failed (${event})
