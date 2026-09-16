@@ -35,27 +35,37 @@ function env(name, fallback = "") {
   return value === undefined || value === "" ? fallback : value;
 }
 
+function awsCredentials() {
+  const accessKeyId = env("SPATIAL_AWS_ACCESS_KEY_ID") || env("AWS_ACCESS_KEY_ID");
+  const secretAccessKey = env("SPATIAL_AWS_SECRET_ACCESS_KEY") || env("AWS_SECRET_ACCESS_KEY");
+  return accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : null;
+}
+
 export function spatialConfig() {
   return {
     bucket: env("SPATIAL_UPLOAD_BUCKET", "herop-sdohplace-upload"),
     lambdaName: env("SPATIAL_LAMBDA_NAME", "herop-sdohplace-spatial"),
-    region: env("AWS_REGION", "us-east-2"),
-    isConfigured: Boolean(env("AWS_ACCESS_KEY_ID") && env("AWS_SECRET_ACCESS_KEY")),
+    region: env("SPATIAL_AWS_REGION") || env("AWS_REGION", "us-east-2"),
+    isConfigured: Boolean(awsCredentials()),
   };
 }
 
-function s3Client() {
+function clientOptions() {
   const { region } = spatialConfig();
+  const credentials = awsCredentials();
+  return credentials ? { region, credentials } : { region };
+}
+
+function s3Client() {
   if (!cachedS3) {
-    cachedS3 = new S3Client({ region });
+    cachedS3 = new S3Client(clientOptions());
   }
   return cachedS3;
 }
 
 function lambdaClient() {
-  const { region } = spatialConfig();
   if (!cachedLambda) {
-    cachedLambda = new LambdaClient({ region });
+    cachedLambda = new LambdaClient(clientOptions());
   }
   return cachedLambda;
 }

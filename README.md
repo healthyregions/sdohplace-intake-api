@@ -74,9 +74,9 @@ Set these environment variables in Netlify:
 INTAKE_API_TOKEN=<strong-random-token>
 INTAKE_API_CORS_ORIGINS=https://your-discovery-site,https://your-metadata-manager-site
 INTAKE_STORE_NAME=submissions
-AWS_REGION=us-east-2
-AWS_ACCESS_KEY_ID=<key with s3 and lambda access>
-AWS_SECRET_ACCESS_KEY=<secret>
+SPATIAL_AWS_REGION=us-east-2
+SPATIAL_AWS_ACCESS_KEY_ID=<key with s3 and lambda access>
+SPATIAL_AWS_SECRET_ACCESS_KEY=<secret>
 SPATIAL_UPLOAD_BUCKET=herop-sdohplace-upload
 SPATIAL_LAMBDA_NAME=herop-sdohplace-spatial
 ```
