@@ -21,6 +21,18 @@
   force = true
 
 [[redirects]]
+  from = "/spatial"
+  to = "/.netlify/functions/spatial"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/spatial/*"
+  to = "/.netlify/functions/spatial"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/email/test"
   to = "/.netlify/functions/email-test"
   status = 200

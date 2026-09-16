@@ -19,6 +19,10 @@ POST   /submissions/:id/decision
 POST   /submissions/:id/published
 POST   /submissions/:id/record-deleted
 POST   /email/test
+GET    /spatial/options
+POST   /spatial/upload-url
+POST   /spatial/start
+GET    /spatial/status?key=<s3-key>&submission_id=<id>|record_id=<id>
 ```
 
 All non-`OPTIONS` requests require:
@@ -70,7 +74,16 @@ Set these environment variables in Netlify:
 INTAKE_API_TOKEN=<strong-random-token>
 INTAKE_API_CORS_ORIGINS=https://your-discovery-site,https://your-metadata-manager-site
 INTAKE_STORE_NAME=submissions
+AWS_REGION=us-east-2
+AWS_ACCESS_KEY_ID=<key with s3 and lambda access>
+AWS_SECRET_ACCESS_KEY=<secret>
+SPATIAL_UPLOAD_BUCKET=herop-sdohplace-upload
+SPATIAL_LAMBDA_NAME=herop-sdohplace-spatial
 ```
+
+The AWS key needs `s3:PutObject` and `s3:GetObject` on the upload bucket and
+`lambda:InvokeFunction` on the spatial function. A local `.env` covers Netlify
+Dev only; the deployed site reads these from Netlify.
 
 Do not set `INTAKE_STORAGE_DRIVER=file` in Netlify production. That local-only setting is used by Netlify Dev before the site has Netlify Blobs context.
 
@@ -80,6 +93,40 @@ Then deploy this repository to Netlify. Configure the other apps with:
 INTAKE_API_BASE_URL=https://your-intake-api.netlify.app
 INTAKE_API_TOKEN=<same-token>
 ```
+
+## Geospatial metadata pipeline
+
+Both callers generate geospatial metadata through this API, so the AWS
+credentials and the S3/Lambda contract live in one place. Neither the metadata
+manager nor the discovery app talks to AWS directly.
+
+```text
+GET  /spatial/options      spatial levels, boundary years, accepted upload kinds
+POST /spatial/upload-url   presigned S3 PUT URL for the CSV (expires in 15 min)
+POST /spatial/start        invokes the Lambda for an uploaded CSV
+GET  /spatial/status       reads result.json; pending until the Lambda finishes
+```
+
+The browser uploads its CSV straight to S3 with the presigned URL, so the file
+never passes through a function body. `POST /spatial/start` then invokes the
+Lambda asynchronously, and the caller polls `GET /spatial/status` until it
+returns `ready` or `failed`.
+
+Callers identify a job by owner id, which decides the S3 namespace:
+
+```text
+record_id      -> uploads/{record_id}/{timestamp}/{file}            (metadata manager)
+submission_id  -> uploads/contrib/{submission_id}/{timestamp}/{file} (discovery app)
+```
+
+Every request is checked against that namespace, so one owner cannot read or
+start a job under another owner's prefix.
+
+CSV is the only accepted upload. Shapefile and GeoJSON uploads stay disabled
+until the Lambda can derive `highlight_ids` and `spatial_coverage` for them.
+
+The upload bucket needs a CORS rule allowing `PUT` from the discovery app
+origins, otherwise the browser blocks the presigned upload.
 
 ## Storage note
 
