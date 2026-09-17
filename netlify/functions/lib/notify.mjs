@@ -49,9 +49,12 @@ async function alertAdmin(event, result, submissionId) {
   }
 }
 
-async function deliver(event, to, templateName, context, submissionId) {
+async function deliver(event, to, templateName, context, submissionId, indexEnv) {
   try {
-    const { subject, body } = renderTemplate(templateName, context);
+    const rendered = renderTemplate(templateName, context);
+    const body = rendered.body;
+    const subject =
+      indexEnv === "dev" ? `[DEV ONLY] ${rendered.subject}` : rendered.subject;
     const result = await sendMail({ to, subject, body });
     if (!result.sent && result.error) {
       await alertAdmin(event, result, submissionId);
@@ -133,7 +136,7 @@ export async function notifyResubmission(submission) {
   );
 }
 
-export async function notifyPublished(submission) {
+export async function notifyPublished(submission, indexEnv) {
   const id = submission?.id;
   await deliver(
     "submission_published",
@@ -144,6 +147,7 @@ export async function notifyPublished(submission) {
       url: submissionUrl(id, submission?.site_origin),
     },
     id,
+    indexEnv,
   );
 }
 
@@ -190,7 +194,7 @@ export async function notifySubmissionDeleted(submission, actor, reviewer) {
   );
 }
 
-export async function notifyRecordDeleted(submission) {
+export async function notifyRecordDeleted(submission, indexEnv) {
   const id = submission?.id;
   await deliver(
     "record_deleted",
@@ -198,5 +202,6 @@ export async function notifyRecordDeleted(submission) {
     "record_deleted",
     { title: submissionTitle(submission) },
     id,
+    indexEnv,
   );
 }

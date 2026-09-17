@@ -17,10 +17,46 @@ export const BOUNDARY_YEARS = ["2018", "2010"];
 
 export const UPLOAD_KINDS = {
   csv: [".csv"],
-  geo: [".zip", ".geojson", ".json"],
+  geo: [".zip", ".geojson", ".gpkg"],
 };
 
-export const UPLOAD_URL_TTL_SECONDS = 900;
+const CONTENT_TYPES = {
+  ".csv": "text/csv",
+  ".zip": "application/zip",
+  ".geojson": "application/geo+json",
+  ".gpkg": "application/geopackage+sqlite3",
+};
+
+export function uploadKindForFilename(filename) {
+  const lowered = String(filename || "").toLowerCase();
+  if (UPLOAD_KINDS.csv.some((extension) => lowered.endsWith(extension))) {
+    return "csv";
+  }
+  if (UPLOAD_KINDS.geo.some((extension) => lowered.endsWith(extension))) {
+    return "geo";
+  }
+  return null;
+}
+
+export function contentTypeForFilename(filename) {
+  const lowered = String(filename || "").toLowerCase();
+  const match = Object.keys(CONTENT_TYPES).find((extension) => lowered.endsWith(extension));
+  return match ? CONTENT_TYPES[match] : "application/octet-stream";
+}
+
+export const UPLOAD_URL_TTL_SECONDS = 3600;
+export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
+export const LARGE_UPLOAD_BYTES = 100 * 1024 * 1024;
+export function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (value >= 1024 * 1024 * 1024) {
+    return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+  if (value >= 1024 * 1024) {
+    return `${Math.round(value / (1024 * 1024))} MB`;
+  }
+  return `${Math.max(1, Math.round(value / 1024))} KB`;
+}
 
 export class SpatialPipelineError extends Error {
   constructor(message, status = 502) {
@@ -106,14 +142,17 @@ export function isOwnedKey(s3Key, ownerId, { contributor = false } = {}) {
 
 export function validateJobInput({ boundaryYear, spatialLevel, uploadKind = "csv" }) {
   const errors = [];
-  if (uploadKind !== "csv") {
-    errors.push("Only CSV uploads are supported right now.");
+  if (!Object.prototype.hasOwnProperty.call(UPLOAD_KINDS, uploadKind)) {
+    errors.push("Upload a CSV, a zipped shapefile, GeoJSON, or a GeoPackage.");
+    return errors;
   }
-  if (!BOUNDARY_YEARS.includes(String(boundaryYear))) {
-    errors.push("Choose a boundary year (2018 or 2010).");
-  }
-  if (!Object.prototype.hasOwnProperty.call(SPATIAL_LEVEL_MAP, spatialLevel)) {
-    errors.push("Choose a spatial level for the CSV join.");
+  if (uploadKind === "csv") {
+    if (!BOUNDARY_YEARS.includes(String(boundaryYear))) {
+      errors.push("Choose a boundary year (2018 or 2010).");
+    }
+    if (!Object.prototype.hasOwnProperty.call(SPATIAL_LEVEL_MAP, spatialLevel)) {
+      errors.push("Choose a spatial level for the CSV join.");
+    }
   }
   return errors;
 }

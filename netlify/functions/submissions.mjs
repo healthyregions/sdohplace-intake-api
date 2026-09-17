@@ -272,6 +272,9 @@ async function handleUpdate(event, store, submissionId) {
   if (input.status) {
     submission.status = input.status;
   }
+  if (input.record_id) {
+    submission.record_id = input.record_id;
+  }
   for (const key of ["submitter_email", "submitter_name", "submitter_username", "submitter_id"]) {
     if (Object.prototype.hasOwnProperty.call(input, key)) {
       submission[key] = input[key] || "";
@@ -340,10 +343,15 @@ async function handlePublished(event, store, submissionId) {
   if (input.record_id) {
     submission.record_id = input.record_id;
   }
+  const indexEnv = input.index_env === "dev" ? "dev" : "prod";
+  submission.index_env = indexEnv;
+  submission.status = "published";
   submission.published_at = nowIso();
   submission.updated_at = submission.published_at;
   await saveSubmission(store, submission);
-  await notifyPublished(submission);
+  if (input.notify !== false) {
+    await notifyPublished(submission, indexEnv);
+  }
   return response(event, 200, publicSubmission(submission));
 }
 
@@ -352,10 +360,13 @@ async function handleRecordDeleted(event, store, submissionId) {
   if (!submission) {
     return response(event, 404, { error: "not_found" });
   }
+  const input = parseBody(event);
+  const indexEnv = input.index_env === "dev" ? "dev" : submission.index_env || "prod";
+  submission.status = "unpublished";
   submission.record_deleted_at = nowIso();
   submission.updated_at = submission.record_deleted_at;
   await saveSubmission(store, submission);
-  await notifyRecordDeleted(submission);
+  await notifyRecordDeleted(submission, indexEnv);
   return response(event, 200, publicSubmission(submission));
 }
 
