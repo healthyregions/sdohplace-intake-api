@@ -1,18 +1,23 @@
 import {
   SPATIAL_LEVEL_MAP,
   BOUNDARY_YEARS,
+  UPLOAD_KINDS,
+  MAX_UPLOAD_BYTES,
+  LARGE_UPLOAD_BYTES,
   SpatialPipelineError,
   buildPayload,
+  contentTypeForFilename,
+  formatBytes,
   createUploadUrl,
   fetchResult,
   invokePipeline,
-  isAllowedUpload,
   isOwnedKey,
   newJobKey,
   normalizeResult,
   resultKey,
   sanitizeFilename,
   spatialConfig,
+  uploadKindForFilename,
   validateJobInput,
 } from "./lib/spatial.mjs";
 
@@ -104,13 +109,34 @@ async function handleUploadUrl(event) {
   if (!filename) {
     return response(event, 400, { error: "invalid_filename" });
   }
-  if (!isAllowedUpload(filename, "csv")) {
-    return response(event, 400, { error: "unsupported_file_type", message: "Upload a .csv file." });
+  const uploadKind = uploadKindForFilename(filename);
+  if (!uploadKind) {
+    return response(event, 400, {
+      error: "unsupported_file_type",
+      message: "Upload a .csv, a zipped shapefile, .geojson, or .gpkg file.",
+    });
   }
 
+  const fileSize = Number(input.file_size) || 0;
+  if (fileSize > MAX_UPLOAD_BYTES) {
+    return response(event, 413, {
+      error: "file_too_large",
+      message:
+        `That file is ${formatBytes(fileSize)}. The limit is ` +
+        `${formatBytes(MAX_UPLOAD_BYTES)}. Try removing columns or features you do not ` +
+        `need, or get in touch and we can load it for you.`,
+      max_bytes: MAX_UPLOAD_BYTES,
+    });
+  }
+  const contentType = contentTypeForFilename(filename);
   const s3Key = newJobKey(ownerId, filename, { contributor });
-  const uploadUrl = await createUploadUrl(s3Key, "text/csv");
-  return response(event, 200, { upload_url: uploadUrl, s3_key: s3Key, content_type: "text/csv" });
+  const uploadUrl = await createUploadUrl(s3Key, contentType);
+  return response(event, 200, {
+    upload_url: uploadUrl,
+    s3_key: s3Key,
+    content_type: contentType,
+    upload_kind: uploadKind,
+  });
 }
 
 async function handleStart(event) {
@@ -125,10 +151,11 @@ async function handleStart(event) {
     return response(event, 400, { error: "invalid_s3_key" });
   }
 
+  const uploadKind = input.upload_kind || uploadKindForFilename(s3Key);
   const errors = validateJobInput({
     boundaryYear: input.boundary_year,
     spatialLevel: input.spatial_level,
-    uploadKind: "csv",
+    uploadKind,
   });
   if (errors.length > 0) {
     return response(event, 400, { error: "invalid_request", messages: errors });
@@ -138,14 +165,14 @@ async function handleStart(event) {
     buildPayload({
       recordId: ownerId,
       s3Key,
-      uploadKind: "csv",
+      uploadKind,
       boundaryYear: input.boundary_year,
       spatialLevel: input.spatial_level,
       geoIdColumn: String(input.geo_id_column || "").trim(),
     }),
   );
 
-  return response(event, 202, { status: "pending", s3_key: s3Key });
+  return response(event, 202, { status: "pending", s3_key: s3Key, upload_kind: uploadKind });
 }
 
 async function handleStatus(event) {
@@ -165,10 +192,15 @@ async function handleStatus(event) {
 }
 
 function handleOptionsList(event) {
+  const extensions = Object.values(UPLOAD_KINDS).flat();
   return response(event, 200, {
     spatial_levels: Object.keys(SPATIAL_LEVEL_MAP),
     boundary_years: BOUNDARY_YEARS,
-    upload_kinds: ["csv"],
+    upload_kinds: Object.keys(UPLOAD_KINDS),
+    upload_extensions: UPLOAD_KINDS,
+    accept: extensions.join(","),
+    max_upload_bytes: MAX_UPLOAD_BYTES,
+    large_upload_bytes: LARGE_UPLOAD_BYTES,
   });
 }
 

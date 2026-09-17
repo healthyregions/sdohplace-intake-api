@@ -122,8 +122,25 @@ submission_id  -> uploads/contrib/{submission_id}/{timestamp}/{file} (discovery 
 Every request is checked against that namespace, so one owner cannot read or
 start a job under another owner's prefix.
 
-CSV is the only accepted upload. Shapefile and GeoJSON uploads stay disabled
-until the Lambda can derive `highlight_ids` and `spatial_coverage` for them.
+Two kinds of upload are accepted, and the kind is derived from the file
+extension rather than asked for:
+
+```text
+csv  .csv                    joined to boundary files
+geo  .zip .geojson .gpkg     carries its own geometry
+```
+
+GeoJSON must be named `.geojson`. A plain `.json` is not accepted, because it is
+ambiguous with non-spatial JSON.
+
+A `.zip` is a shapefile with its sidecars (`.shp`, `.shx`, `.dbf`, `.prj`) in
+one archive; `.gpkg` is a GeoPackage. `boundary_year` and `spatial_level`
+describe how a CSV is joined to boundary files, so they are required for `csv`
+and ignored for `geo`.
+
+`GET /spatial/options` returns the accepted kinds, their extensions, and an
+`accept` string for a file input. Callers should read it rather than hardcode
+the list, so adding a format stays a change to this service alone.
 
 The upload bucket needs a CORS rule allowing `PUT` from the discovery app
 origins, otherwise the browser blocks the presigned upload.
@@ -154,8 +171,18 @@ flowchart LR
 |---|---|---|---|
 | 1. Draft / submit | Contributor saves | `sub-1003` with `site_origin`, `submitter_*`, `payload_json` | Netlify Blobs |
 | 2. Review decision | Admin approves / rejects / needs changes | `status`, `review_notes`, `reviewed_by` | Netlify Blobs |
-| 3. Record created | Admin runs "Add Records" on the Approved tab | `_meta.submission_id` on the record; `record_id` + `published_at` on the submission | EC2 disk + Blobs |
-| 4. Record deleted | Admin deletes a record | `record_deleted_at` on the submission | Netlify Blobs |
+| 3. Record created | Admin runs "Add Records" on the Approved tab | `_meta.submission_id` on the record; `record_id` on the submission | EC2 disk + Blobs |
+| 4. Record indexed | Admin indexes the record to Solr | `status: published`, `index_env`, `published_at` | Netlify Blobs |
+| 5. Record deleted | Admin deletes a record | `status: unpublished`, `record_deleted_at` | Netlify Blobs |
+
+Creating a record and publishing it are separate. A submission stays `approved`
+until its record actually reaches Solr, which is when the contributor is emailed
+that it is live. `POST /:id/published` is therefore sent by the indexing step,
+not by "Add Records".
+
+`index_env` records which core it went to. When it is `dev`, every email subject
+for that submission is prefixed `[DEV ONLY]` so demo and test runs are obvious
+in an inbox. Pass `notify: false` to record a publish without emailing.
 
 ### The two-way link
 
@@ -203,7 +230,7 @@ here. The Metadata Manager no longer sends mail itself.
 | 4 | `decision: approve` | `submission_approved` | Contributor | SDOH & Place submission approved: *title* |
 | 5 | `decision: needs_changes` | `submission_needs_changes` | Contributor | SDOH & Place submission needs changes: *title* |
 | 6 | `decision: reject` | `submission_rejected` | Contributor | SDOH & Place submission update: *title* |
-| 7 | `POST /:id/published` | `submission_published` | Contributor | SDOH & Place submission is now live: *title* |
+| 7 | `POST /:id/published`, sent when the record is indexed to Solr | `submission_published` | Contributor | SDOH & Place submission is now live: *title* |
 | 8 | `DELETE ?actor=contributor` | `reviewer_submission_withdrawn` | Reviewers | [SDOH & Place] Submission withdrawn by contributor: *title* |
 | 9 | `DELETE ?actor=admin` | `submission_deleted` | Contributor | SDOH & Place submission removed: *title* |
 | 10 | `DELETE ?actor=admin` | `reviewer_submission_deleted` | Reviewers | [SDOH & Place] Submission deleted by admin: *title* |
